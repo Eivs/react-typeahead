@@ -1,10 +1,12 @@
+import { get } from 'lodash';
+
 const Accessor = {
   IDENTITY_FN(input) {
     return input;
   },
 
   generateAccessor(field) {
-    return object => object[field];
+    return object => get(object, field);
   },
 
   generateOptionToStringFor(prop) {
@@ -18,7 +20,7 @@ const Accessor = {
 
   valueForOption(option, object) {
     if (typeof option === 'string') {
-      return object[option];
+      return get(object, option);
     } else if (typeof option === 'function') {
       return option(object);
     }

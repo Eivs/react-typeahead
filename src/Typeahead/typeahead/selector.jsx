@@ -4,11 +4,6 @@ import classNames from 'classnames';
 
 import TypeaheadOption from './option';
 
-/**
- * Container for the options rendered as part of the autocompletion process
- * of the typeahead
- */
-
 class TypeaheadSelector extends Component {
   static propTypes = {
     options: PropTypes.array,
@@ -49,12 +44,11 @@ class TypeaheadSelector extends Component {
       areResultsTruncated,
       resultsTruncatedMessage,
     } = this.props;
-    // Don't render if there are no options to display
+
     if (!options.length && allowCustomValues <= 0) {
-      return false;
+      return null;
     }
 
-    // CustomValue should be added to top of results list with different class name
     let customItem = null;
     let customValueOffset = 0;
     if (customValue !== null) {
@@ -69,7 +63,7 @@ class TypeaheadSelector extends Component {
             this.handleOnClick(customValue, event);
           }}
         >
-          {this.props.customValue}
+          {customValue}
         </TypeaheadOption>
       );
     }

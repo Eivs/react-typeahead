@@ -39,7 +39,11 @@ class TypeaheadOption extends Component {
             this.anchor = n;
           }}
         >
-          {children}
+          {React.isValidElement(children) ? (
+            children
+          ) : (
+            <span dangerouslySetInnerHTML={{ __html: children }} />
+          )}
         </a>
       </li>
     );

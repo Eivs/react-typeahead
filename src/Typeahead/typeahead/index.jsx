@@ -8,7 +8,8 @@ import KeyEvent from '../utils/keyevent';
 
 import TypeaheadSelector from './selector';
 
-const noop = () => {};
+// eslint-disable-next-line
+const noop = params => {};
 
 class Typeahead extends Component {
   static propTypes = {
@@ -73,18 +74,11 @@ class Typeahead extends Component {
     const { value, initialValue, options } = props;
 
     this.state = {
-      // This should be called something else, "entryValue"
       entryValue: value || initialValue,
-      // A valid typeahead value
       selection: value,
-      // Index of the selection
       selectionIndex: null,
-      // Keep track of the focus state of the input element, to determine
-      // whether to show options when empty (if showOptionsWhenEmpty is true)
       isFocused: false,
-      // true when focused, false onOptionSelected
       showResults: false,
-      // The options matching the entry value
       searchResults: this.getOptionsForValue(initialValue, options),
     };
   }
@@ -99,6 +93,27 @@ class Typeahead extends Component {
     });
   }
 
+  getCustomValue = () => {
+    if (this.hasCustomValue()) {
+      return this.state.entryValue;
+    }
+    return null;
+  };
+
+  setEntryText = value => {
+    this.entry.value = value;
+    this.handleOnTextEntryUpdated();
+  };
+
+  getOptionsForValue = (value, options) => {
+    if (this.shouldSkipSearch(value)) {
+      return [];
+    }
+
+    const searchOptions = this.generateSearchFunction();
+    return searchOptions(value, options);
+  };
+
   getSelection = () => {
     const { selectionIndex, entryValue, searchResults } = this.state;
 
@@ -112,25 +127,12 @@ class Typeahead extends Component {
     return searchResults[index];
   };
 
-  getOptionsForValue = (value, options) => {
-    if (this.shouldSkipSearch(value)) {
-      return [];
-    }
+  shouldSkipSearch = input => {
+    const { showOptionsWhenEmpty } = this.props;
+    const emptyValue = !input || input.trim().length === 0;
 
-    const searchOptions = this.generateSearchFunction();
-    return searchOptions(value, options);
-  };
-
-  setEntryText = value => {
-    this.entry.value = value;
-    this.handleOnTextEntryUpdated();
-  };
-
-  getCustomValue = () => {
-    if (this.hasCustomValue()) {
-      return this.state.entryValue;
-    }
-    return null;
+    const isFocused = this.state && this.state.isFocused;
+    return !(showOptionsWhenEmpty && isFocused) && emptyValue;
   };
 
   hasCustomValue = () => {
@@ -145,14 +147,6 @@ class Typeahead extends Component {
       return true;
     }
     return false;
-  };
-
-  shouldSkipSearch = input => {
-    const { showOptionsWhenEmpty } = this.props;
-    const emptyValue = !input || input.trim().length === 0;
-    const isFocused = this.state && this.state.isFocused;
-
-    return !(showOptionsWhenEmpty && isFocused) && emptyValue;
   };
 
   focus = () => {
@@ -205,7 +199,6 @@ class Typeahead extends Component {
 
   generateSearchFunction = () => {
     const { searchOptions, filterOption } = this.props;
-
     if (typeof searchOptions === 'function') {
       if (filterOption !== null) {
         console.warn('searchOptions prop is being used, filterOption prop will be ignored');
@@ -216,7 +209,6 @@ class Typeahead extends Component {
     }
 
     let mapper;
-
     if (typeof filterOption === 'string') {
       mapper = Accessor.generateAccessor(filterOption);
     } else {
@@ -249,15 +241,14 @@ class Typeahead extends Component {
 
     entry.value = optionString;
 
-    this.setState(
-      {
-        searchResults: this.getOptionsForValue(optionString, options),
-        selection: formInputOptionString,
-        entryValue: optionString,
-        showResults: false,
-      },
-      () => onOptionSelected(option, event),
-    );
+    this.setState({
+      searchResults: this.getOptionsForValue(optionString, options),
+      selection: formInputOptionString,
+      entryValue: optionString,
+      showResults: false,
+    });
+
+    return onOptionSelected(option, event);
   };
 
   handleOnTextEntryUpdated = () => {
@@ -276,15 +267,16 @@ class Typeahead extends Component {
     const { onKeyDown } = this.props;
 
     if (!selection) {
-      onKeyDown(event);
+      return onKeyDown(event);
     }
 
-    this.handleOnOptionSelected(selection, event);
+    return this.handleOnOptionSelected(selection, event);
   };
 
   handleOnEscape = () => {
     this.setState({
       selectionIndex: null,
+      showResults: false,
     });
   };
 
@@ -315,13 +307,9 @@ class Typeahead extends Component {
 
   handleOnKeyDown = event => {
     const { onKeyDown } = this.props;
-    // If there are no visible elements, don't perform selector navigation.
-    // Just pass this up to the upstream onKeydown handler.
-    // Also skip if the user is pressing the shift key,
-    // since none of our handlers are looking for shift
+
     if (!this.hasHint() || event.shiftKey) {
-      onKeyDown(event);
-      return;
+      return onKeyDown(event);
     }
 
     const handler = this.eventMap()[event.keyCode];
@@ -329,19 +317,16 @@ class Typeahead extends Component {
     if (handler) {
       handler(event);
     } else {
-      onKeyDown(event);
-      return;
+      return onKeyDown(event);
     }
-    // Don't propagate the keystroke back to the DOM/browser
-    event.preventDefault();
+
+    return event.preventDefault();
   };
 
   handleOnFocus = event => {
     const { onFocus } = this.props;
 
-    this.setState({ isFocused: true, showResults: true }, () => {
-      this.handleOnTextEntryUpdated();
-    });
+    this.setState({ isFocused: true, showResults: true }, this.handleOnTextEntryUpdated);
 
     if (onFocus) {
       onFocus(event);
@@ -351,9 +336,7 @@ class Typeahead extends Component {
   handleOnBlur = event => {
     const { onBlur } = this.props;
 
-    this.setState({ isFocused: false }, () => {
-      this.handleOnTextEntryUpdated();
-    });
+    this.setState({ isFocused: false }, this.handleOnTextEntryUpdated);
 
     if (onBlur) {
       onBlur(event);
@@ -391,14 +374,12 @@ class Typeahead extends Component {
       displayOption,
     } = this.props;
 
-    // Nothing has been entered into the textbox
     if (this.shouldSkipSearch(entryValue)) {
-      return '';
+      return null;
     }
 
-    // Something was just selected
     if (selection) {
-      return '';
+      return null;
     }
 
     return (
@@ -444,8 +425,8 @@ class Typeahead extends Component {
           }}
           type="text"
           disabled={disabled}
-          {...inputProps}
           placeholder={placeholder}
+          {...inputProps}
           className={classNames(customClasses.input)}
           value={entryValue}
           onChange={this.handleOnChange}
